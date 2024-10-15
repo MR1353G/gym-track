@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym & Food Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #container {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+        }
+        #sidebar {
+            background-color: #f4f4f4;
+            padding: 20px;
+            width: 250px;
+            overflow-y: auto;
+            border-right: 1px solid #ccc;
+        }
+        #content {
+            padding: 20px;
+            flex: 1;
+        }
+        #dateList {
+            list-style: none;
+            padding: 0;
+        }
+        #dateList li {
+            cursor: pointer;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        #dateList li:hover {
+            background-color: #e0e0e0;
+        }
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+        textarea {
+            width: 100%;
+            height: 60px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #recordDetails {
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            #container {
+                flex-direction: column;
+            }
+            #sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #ccc;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <!-- Sidebar for date selection -->
+    <div id="sidebar">
+        <h2>Records</h2>
+        <ul id="dateList"></ul>
+    </div>
+
+    <!-- Main content for form and record details -->
+    <div id="content">
+        <form id="trackerForm">
+            <label>
+                Date:
+                <input type="date" id="dateInput">
+            </label>
+
+            <label>
+                Day of the Week:
+                <select id="dayInput">
+                    <option value="Sunday">Sunday</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                </select>
+            </label>
+
+            <label>
+                Did you go to the gym today?
+                <select id="gymAttendance">
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                </select>
+            </label>
+
+            <label>
+                What workout did you do?
+                <textarea id="workout" placeholder="e.g., Chest, Cardio, Legs"></textarea>
+            </label>
+
+            <label>
+                What did you eat today?
+                <textarea id="meals" placeholder="e.g., Breakfast: Eggs, Lunch: Salad"></textarea>
+            </label>
+
+            <button type="button" id="submitData">Save Data</button>
+        </form>
+
+        <div id="recordDetails"></div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('submitData').addEventListener('click', saveData);
+
+    let editMode = false;  // Flag to track if we're editing an entry
+    let editId = null;     // Store the ID of the record we're editing
+
+    // Save or update data
+    function saveData() {
+        const gymAttendance = document.getElementById('gymAttendance').value;
+        const workout = document.getElementById('workout').value.trim();
+        const meals = document.getElementById('meals').value.trim();
+        const selectedDate = document.getElementById('dateInput').value;  // Date input
+        const selectedDay = document.getElementById('dayInput').value;    // Day dropdown
+
+        // Get previous data from localStorage
+        let records = JSON.parse(localStorage.getItem('gymRecords')) || [];
+
+        if (editMode) {
+            // Find the record by ID and update it
+            records = records.map(record => {
+                if (record.id === editId) {
+                    return { id: editId, date: selectedDate, day: selectedDay, gymAttendance, workout, meals };
+                }
+                return record;
+            });
+
+            // Exit edit mode
+            editMode = false;
+            editId = null;
+
+            // Change button back to "Save Data"
+            document.getElementById('submitData').textContent = "Save Data";
+        } else {
+            // Create a new entry if not editing
+            const entry = {
+                id: Date.now(),  // Unique ID based on timestamp
+                date: selectedDate,
+                day: selectedDay,
+                gymAttendance,
+                workout,
+                meals
+            };
+
+            // Add new entry
+            records.push(entry);
+        }
+
+        // Save updated data back to localStorage
+        localStorage.setItem('gymRecords', JSON.stringify(records));
+
+        // Update the sidebar
+        displayDates();
+
+        // Clear form fields
+        document.getElementById('trackerForm').reset();
+    }
+
+    // Display dates and days in the sidebar
+    function displayDates() {
+        const dateList = document.getElementById('dateList');
+        dateList.innerHTML = '';  // Clear previous list
+
+        // Get data from localStorage
+        const records = JSON.parse(localStorage.getItem('gymRecords')) || [];
+
+        if (records.length === 0) {
+            dateList.innerHTML = '<li>No records available yet.</li>';
+            return;
+        }
+
+        // Create list items for each record date
+        records.forEach(record => {
+            const li = document.createElement('li');
+            li.textContent = `${record.date} (${record.day})`;  // Display date with the day
+            li.onclick = () => displayRecord(record.id);
+            dateList.appendChild(li);
+        });
+    }
+
+    // Display the data for the selected date
+    function displayRecord(id) {
+        // Get all records from localStorage
+        const records = JSON.parse(localStorage.getItem('gymRecords')) || [];
+
+        // Find the record with the matching ID
+        const record = records.find(r => r.id === id);
+
+        if (record) {
+            const recordDetails = document.getElementById('recordDetails');
+            recordDetails.innerHTML = `
+                <p><strong>Date:</strong> ${record.date}</p>
+                <p><strong>Day:</strong> ${record.day}</p>
+                <p><strong>Gym:</strong> ${record.gymAttendance}</p>
+                <p><strong>Workout:</strong> ${record.workout || 'N/A'}</p>
+                <p><strong>Meals:</strong> ${record.meals || 'N/A'}</p>
+                <button class="edit-btn" onclick="editRecord(${record.id})">Edit</button>
+                <button class="remove-btn" onclick="removeRecord(${record.id})">Remove</button>
+            `;
+        }
+    }
+
+    // Edit record by ID
+    function editRecord(id) {
+        const records = JSON.parse(localStorage.getItem('gymRecords')) || [];
+        const recordToEdit = records.find(record => record.id === id);
+
+        if (recordToEdit) {
+            document.getElementById('gymAttendance').value = recordToEdit.gymAttendance;
+            document.getElementById('workout').value = recordToEdit.workout;
+            document.getElementById('meals').value = recordToEdit.meals;
+            document.getElementById('dateInput').value = recordToEdit.date;   // Populate date
+            document.getElementById('dayInput').value = recordToEdit.day;     // Populate day
+
+            editMode = true;
+            editId = recordToEdit.id;
+            document.getElementById('submitData').textContent = "Update Data";
+        }
+    }
+
+    // Remove record by ID
+    function removeRecord(id) {
+        let records = JSON.parse(localStorage.getItem('gymRecords')) || [];
+        records = records.filter(record => record.id !== id);
+        localStorage.setItem('gymRecords', JSON.stringify(records));
+        displayDates();
+        document.getElementById('recordDetails').innerHTML = '';
+    }
+
+    // Display dates when the page loads
+    document.addEventListener('DOMContentLoaded', displayDates);
+</script>
+
+</body>
+</html>
